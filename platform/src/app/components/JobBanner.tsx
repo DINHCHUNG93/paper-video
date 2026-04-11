@@ -1,7 +1,7 @@
 import { useNavigate, useLocation } from "react-router";
-import { Loader2, CheckCircle2, X } from "lucide-react";
+import { Loader2, CheckCircle2, X, Square } from "lucide-react";
 import { useJobs } from "../lib/JobContext";
-import { statusToStageIndex } from "../lib/api";
+import { cancelJob, statusToStageIndex } from "../lib/api";
 
 const STAGE_LABELS = ["Extracting", "Planning", "Rendering", "TTS", "Assembling"];
 
@@ -160,6 +160,27 @@ export default function JobBanner() {
                 {job.paperName}
               </div>
             </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                cancelJob(job.jobId);
+                removeJob(job.jobId);
+              }}
+              title="Stop"
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: 4,
+                color: "#DC2626",
+                flexShrink: 0,
+                opacity: 0.6,
+              }}
+              onMouseEnter={(e) => { (e.target as HTMLElement).style.opacity = "1"; }}
+              onMouseLeave={(e) => { (e.target as HTMLElement).style.opacity = "0.6"; }}
+            >
+              <Square size={14} fill="#DC2626" />
+            </button>
           </div>
         );
       })}

@@ -20,7 +20,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from pipeline import create_job, get_job, run_pipeline, OUTPUT_ROOT, UPLOADED_PDFS_DIR
+from pipeline import create_job, get_job, cancel_job, run_pipeline, OUTPUT_ROOT, UPLOADED_PDFS_DIR
 from pipeline.template_registry import REGISTRY
 from pipeline.template_registry import TEMPLATES_DIR
 
@@ -66,6 +66,13 @@ async def upload_pdf(file: UploadFile, mode: str = "brief"):
     t.start()
 
     return {"job_id": job_id}
+
+
+@app.post("/cancel/{job_id}")
+async def cancel_pipeline(job_id: str):
+    if cancel_job(job_id):
+        return {"status": "cancelled"}
+    raise HTTPException(404, "Job not found or already completed.")
 
 
 @app.get("/status/{job_id}")

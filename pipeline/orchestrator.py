@@ -127,6 +127,18 @@ class JobManager:
     def get_job(self, job_id: str) -> dict[str, Any] | None:
         return self._jobs.get(job_id)
 
+    def cancel_job(self, job_id: str) -> bool:
+        """Mark a job as cancelled. The pipeline checks this flag between stages."""
+        job = self._jobs.get(job_id)
+        if not job:
+            return False
+        job["cancelled"] = True
+        job["status"] = Status.FAILED
+        job["error"] = "Cancelled by user"
+        job_dir = Path(job["job_dir"])
+        _persist_status(job, job_dir)
+        return True
+
 
 # ── Pipeline ─────────────────────────────────────────────────────────────────
 
@@ -177,7 +189,12 @@ class Pipeline:
             pipeline_root.setLevel(logging.INFO)
         pipeline_root.addHandler(job_log_handler)
 
+        def _check_cancelled():
+            if job.get("cancelled"):
+                raise RuntimeError("Cancelled by user")
+
         def _notify(status: Status) -> None:
+            _check_cancelled()
             job["status"] = status
             logger.info("[%s] %s", job_id, _STAGE_LABELS.get(status, status.value))
             _persist_status(job, job_dir)
@@ -296,6 +313,10 @@ def create_job(pdf_path: Path, frames_only: bool = False, suffix: str = "") -> s
 
 def get_job(job_id: str) -> dict[str, Any] | None:
     return _default_manager.get_job(job_id)
+
+
+def cancel_job(job_id: str) -> bool:
+    return _default_manager.cancel_job(job_id)
 
 
 def run_pipeline(

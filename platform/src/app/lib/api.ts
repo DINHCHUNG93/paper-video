@@ -63,6 +63,11 @@ export async function uploadPdf(file: File, mode: "brief" | "detailed" = "brief"
   return data.job_id;
 }
 
+/** Cancel a running pipeline job. */
+export async function cancelJob(jobId: string): Promise<void> {
+  await fetch(`${API_BASE}/cancel/${jobId}`, { method: "POST" });
+}
+
 /** Poll job status. */
 export async function getJobStatus(jobId: string): Promise<JobStatus> {
   const res = await fetch(`${API_BASE}/status/${jobId}`);

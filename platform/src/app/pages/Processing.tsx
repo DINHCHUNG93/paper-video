@@ -8,7 +8,7 @@ import {
   saveVideoToLibrary,
   templateInfo,
 } from "../lib/data";
-import { getJobStatus, getJobData, statusToStageIndex } from "../lib/api";
+import { getJobStatus, getJobData, cancelJob, statusToStageIndex } from "../lib/api";
 import { useAuth } from "../lib/useAuth";
 import { useJobs } from "../lib/JobContext";
 import UserMenu from "../components/UserMenu";
@@ -196,6 +196,13 @@ export default function Processing() {
         const status = await getJobStatus(jobId!);
         pollFailCountRef.current = 0;
         const stageIdx = statusToStageIndex(status.status);
+
+        console.log(
+          `[Pipeline ${jobId}] %c${status.status}%c | stage ${stageIdx}/5 | scenes ${status.scenes_done}/${status.scenes_total}`,
+          "color: #2563EB; font-weight: bold",
+          "color: inherit"
+        );
+
         setCurrentStage(stageIdx);
         setScenesTotal(status.scenes_total);
         setScenesDone(status.scenes_done);
@@ -203,9 +210,11 @@ export default function Processing() {
         // After extraction, fetch real paper info (once)
         if (stageIdx >= 1 && !paperInfoFetchedRef.current) {
           paperInfoFetchedRef.current = true;
+          console.log(`[Pipeline ${jobId}] Fetching paper info...`);
           try {
             const data = await getJobData(jobId!);
             if (data.paper) {
+              console.log(`[Pipeline ${jobId}] Paper extracted: "${data.paper.title}" — ${data.paper.sections?.length || 0} sections, ${data.paper.figures?.length || 0} figures, ${data.paper.tables?.length || 0} tables`);
               const sections = data.paper.sections || [];
               const abstractSection = sections.find((s: any) => s.heading?.toLowerCase() === "abstract");
               setPaperInfo({
@@ -231,9 +240,14 @@ export default function Processing() {
         // After planning, fetch real scene plan (once)
         if (stageIdx >= 2 && !scenePlanFetchedRef.current) {
           scenePlanFetchedRef.current = true;
+          console.log(`[Pipeline ${jobId}] Fetching scene plan...`);
           try {
             const data = await getJobData(jobId!);
             if (data.plan?.scenes) {
+              console.log(`[Pipeline ${jobId}] Plan ready: ${data.plan.scenes.length} scenes`);
+              data.plan.scenes.forEach((s: any) => {
+                console.log(`  Scene ${s.scene_number}: [${s.template}] ${(s.narration || "").slice(0, 60)}...`);
+              });
               setScenePlan(
                 data.plan.scenes.map((s: any) => ({
                   id: s.scene_number,
@@ -252,6 +266,7 @@ export default function Processing() {
 
         // Done → fetch full data and navigate to viewer
         if (status.status === "done") {
+          console.log(`[Pipeline ${jobId}] %c✓ DONE%c — navigating to viewer in 2s`, "color: #16A34A; font-weight: bold", "color: inherit");
           clearInterval(pollingRef.current);
           try {
             const data = await getJobData(jobId!);
@@ -304,6 +319,7 @@ export default function Processing() {
 
         // Failed
         if (status.status === "failed") {
+          console.error(`[Pipeline ${jobId}] ✗ FAILED:`, status.error);
           clearInterval(pollingRef.current);
           setPipelineError(
             status.error || "Something went wrong while generating your video."
@@ -607,16 +623,44 @@ export default function Processing() {
               ? `Completed in ${completedTime}s`
               : activeStage?.label || "Starting..."}
           </span>
-          <span
-            style={{
-              fontFamily: "'Inter', sans-serif",
-              fontSize: 14,
-              color: "#2563EB",
-              fontWeight: 600,
-            }}
-          >
-            {progressPercent}%
-          </span>
+          <div className="flex items-center gap-3">
+            {completedTime === null && !pipelineError && useRealBackend && (
+              <button
+                onClick={async () => {
+                  if (jobId) {
+                    console.log(`[Pipeline ${jobId}] Cancelling...`);
+                    await cancelJob(jobId);
+                    removeJob(jobId);
+                    setPipelineError("Cancelled by user.");
+                    clearInterval(pollingRef.current);
+                  }
+                }}
+                style={{
+                  background: "none",
+                  border: "1px solid #E5E7EB",
+                  borderRadius: 6,
+                  padding: "4px 12px",
+                  cursor: "pointer",
+                  fontFamily: "Inter, sans-serif",
+                  fontSize: 12,
+                  color: "#DC2626",
+                  fontWeight: 500,
+                }}
+              >
+                Stop
+              </button>
+            )}
+            <span
+              style={{
+                fontFamily: "'Inter', sans-serif",
+                fontSize: 14,
+                color: "#2563EB",
+                fontWeight: 600,
+              }}
+            >
+              {progressPercent}%
+            </span>
+          </div>
         </div>
         <div
           style={{
