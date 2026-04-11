@@ -176,6 +176,7 @@ export default function Processing() {
   const [scenesDone, setScenesDone] = useState(0);
   const [scenesTotal, setScenesTotal] = useState(0);
   const pollingRef = useRef<ReturnType<typeof setInterval>>();
+  const userRef = useRef(user);
   const stageStartTimeRef = useRef<number>(Date.now());
   const lastStageRef = useRef<number>(-1);
   const elapsedTimeRef = useRef(0);
@@ -188,6 +189,9 @@ export default function Processing() {
 
   // ── Real backend polling (non-demo, non-example uploads) ──
   const useRealBackend = !isDemo && !isExample && !!jobId;
+
+  // Keep user ref in sync for use inside poll callback
+  useEffect(() => { userRef.current = user; }, [user]);
 
   // Save to Supabase when user signs in after video is done
   useEffect(() => {
@@ -373,9 +377,9 @@ export default function Processing() {
             saveVideoToLibrary(jobId!, videoMeta);
           }
           // Persist to Supabase for cross-device access
-          if (user && videoMeta) {
+          if (userRef.current && videoMeta) {
             try {
-              await saveVideoToSupabase(user.id, jobId!, {
+              await saveVideoToSupabase(userRef.current.id, jobId!, {
                 ...videoMeta,
                 arxiv_id: extractArxivId(uploadUrl),
                 blob_url: status.blob_url || null,
@@ -396,13 +400,10 @@ export default function Processing() {
           }
           setCompletedTime(elapsedTimeRef.current);
           removeJob(jobId!);
-          if (user) {
+          if (userRef.current) {
             setTimeout(() => navigate(`/v/${jobId}`), 2000);
           } else {
-            // Double-check — user might load shortly after
-            setTimeout(() => {
-              setShowSignIn(true);
-            }, 500);
+            setShowSignIn(true);
           }
         }
 
@@ -784,17 +785,17 @@ export default function Processing() {
         </div>
       )}
 
-      {/* ── Backend mode indicator ── */}
-      {useRealBackend && (
+      {/* ── Info message ── */}
+      {useRealBackend && completedTime === null && !pipelineError && !isQueued && user && (
         <div className="text-center" style={{ marginTop: 8 }}>
           <span
-            className="text-xs px-2 py-1 rounded inline-block"
             style={{
-              backgroundColor: "rgba(5, 150, 105, 0.1)",
-              color: "#059669",
+              fontFamily: "Inter, sans-serif",
+              fontSize: 12,
+              color: "#9CA3AF",
             }}
           >
-            Connected to pipeline
+            You can leave this page — we'll save your video to your library when it's done.
           </span>
         </div>
       )}
