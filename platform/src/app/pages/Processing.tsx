@@ -1128,12 +1128,14 @@ export default function Processing() {
         <div style={{ padding: "24px 240px 0", textAlign: "center" }}>
           <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#9CA3AF" }}>
             Bored?{" "}
-            <button
-              onClick={() => alert("You're early! The blog comes out tomorrow, Apr 12th at 9 AM.")}
-              style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "Inter, sans-serif", fontSize: 13, color: "#2563EB", padding: 0 }}
+            <a
+              href="https://open.substack.com/pub/makingaieasy/p/a-surprisingly-elegant-fix-for-llm?r=4t1neu&utm_campaign=post&utm_medium=web&showWelcomeOnShare=true"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "#2563EB", textDecoration: "none" }}
             >
               Read about how we built this →
-            </button>
+            </a>
           </span>
         </div>
       )}
