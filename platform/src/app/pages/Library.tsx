@@ -34,23 +34,28 @@ export default function Library() {
   const loadLibrary = useCallback(async () => {
     setLibraryLoading(true);
     seedSampleItems();
+
+    // Always show sample videos
     const localLib = getLibrary();
+    const sampleVideos = localLib.filter((v: any) => v.isSample);
 
     if (user) {
       try {
-        // Push any local-only videos to Supabase (handles migration + logged-out-then-in)
+        // Sync any local videos with blob URLs to Supabase
         await syncLocalLibraryToSupabase(user.id, localLib);
+        // Fetch from Supabase — single source of truth for user videos
         const cloudVideos = await getLibraryFromSupabase(user.id);
-        // Merge: cloud videos + local-only samples not already in cloud
-        const sampleVideos = localLib.filter((v: any) => v.isSample);
-        const cloudIds = new Set(cloudVideos.map((v: any) => v.id));
+        // Only show cloud videos that have a blob URL (playable)
+        const playableVideos = cloudVideos.filter((v: any) => v.blobUrl);
+        const cloudIds = new Set(playableVideos.map((v: any) => v.id));
         const extraSamples = sampleVideos.filter((v: any) => !cloudIds.has(v.id));
-        setLibrary([...cloudVideos, ...extraSamples]);
+        setLibrary([...playableVideos, ...extraSamples]);
       } catch {
-        setLibrary(localLib);
+        setLibrary(sampleVideos);
       }
     } else {
-      setLibrary(localLib);
+      // Not signed in — only show samples
+      setLibrary(sampleVideos);
     }
     setLibraryLoading(false);
   }, [user]);
