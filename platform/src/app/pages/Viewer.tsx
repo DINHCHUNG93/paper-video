@@ -1,7 +1,8 @@
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router";
 import {
   Play, Pause, Volume2, Maximize, Minimize,
-  Download, StickyNote, FileText, X, Trash2, Copy,
+  Download, StickyNote, FileText, X, Trash2, Copy, Loader2,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Textarea } from "../components/ui/textarea";
@@ -15,6 +16,7 @@ export default function Viewer() {
   const navigate = useNavigate();
   const { user, signInWithGoogle, signOut } = useAuth();
   const p = useVideoPlayer(videoId, arxivId);
+  const [videoLoading, setVideoLoading] = useState(true);
 
   if (!p.video) {
     if (p.cloudLoading) {
@@ -115,15 +117,24 @@ export default function Viewer() {
               style={{ backgroundColor: "#1A1A1A", borderRadius: "12px 12px 0 0" }}
             >
               {(() => { console.log("[RENDER] hasRealVideo:", p.hasRealVideo, "streamUrl:", p.streamUrl?.slice(0, 40)); return null; })()}
+              {/* Loading spinner */}
+              {videoLoading && p.hasRealVideo && p.streamUrl && (
+                <div className="absolute inset-0 flex items-center justify-center z-10" style={{ backgroundColor: "#1A1A1A" }}>
+                  <Loader2 size={32} color="#2563EB" className="animate-spin" />
+                </div>
+              )}
+
               {p.hasRealVideo && p.streamUrl ? (
                 <video
                   ref={p.videoElRef}
                   src={p.streamUrl}
                   className="w-full h-full object-contain"
                   onTimeUpdate={() => { if (p.videoElRef.current) p.setCurrentTime(p.videoElRef.current.currentTime); }}
+                  onWaiting={() => setVideoLoading(true)}
+                  onCanPlay={() => setVideoLoading(false)}
                   onSeeking={() => console.log("[VIDEO] seeking to:", p.videoElRef.current?.currentTime)}
                   onSeeked={() => console.log("[VIDEO] seeked, now at:", p.videoElRef.current?.currentTime)}
-                  onError={(e) => console.warn("[VIDEO] error:", (e.target as HTMLVideoElement).error)}
+                  onError={(e) => { console.warn("[VIDEO] error:", (e.target as HTMLVideoElement).error); setVideoLoading(false); }}
                   onPlay={() => p.setIsPlaying(true)}
                   onPause={() => p.setIsPlaying(false)}
                   onEnded={() => p.setIsPlaying(false)}

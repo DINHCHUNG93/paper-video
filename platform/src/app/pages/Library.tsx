@@ -10,13 +10,18 @@ function timeAgo(dateStr: string): string {
   const now = new Date();
   const date = new Date(dateStr);
   const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  if (diffDays === 0) return "Generated today";
-  if (diffDays === 1) return "Generated 1 day ago";
-  if (diffDays < 30) return `Generated ${diffDays} days ago`;
-  const diffMonths = Math.floor(diffDays / 30);
-  if (diffMonths === 1) return "Generated 1 month ago";
-  return `Generated ${diffMonths} months ago`;
+
+  const timeStr = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+  if (diffMins < 2) return "Just now";
+  if (diffMins < 60) return `${diffMins} min ago`;
+  if (diffHours < 24) return `Today at ${timeStr}`;
+  if (diffDays === 1) return `Yesterday at ${timeStr}`;
+  if (diffDays < 7) return `${diffDays} days ago`;
+  return date.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
 }
 
 export default function Library() {
@@ -335,32 +340,61 @@ export default function Library() {
               <div
                 className="relative flex flex-col items-center justify-center"
                 style={{
-                  height: 180,
-                  backgroundColor: "#1A1A1A",
-                  padding: "0 32px",
+                  height: 200,
+                  background: (() => {
+                    // Rotate through warm, inviting gradients based on video index
+                    const gradients = [
+                      "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                      "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+                      "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+                      "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
+                      "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
+                      "linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)",
+                      "linear-gradient(135deg, #fccb90 0%, #d57eeb 100%)",
+                      "linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)",
+                    ];
+                    // Use title length as a simple hash for consistent color per video
+                    const idx = (video.title?.length || 0) % gradients.length;
+                    return gradients[idx];
+                  })(),
+                  padding: "0 40px",
+                  overflow: "hidden",
                 }}
               >
-                {/* Blue accent bar */}
+                {/* Subtle noise texture */}
+                <div style={{
+                  position: "absolute",
+                  inset: 0,
+                  background: "radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.2) 0%, transparent 50%)",
+                  pointerEvents: "none",
+                }} />
+
+                {/* Accent bar */}
                 <div
                   style={{
-                    width: 3,
-                    height: 36,
-                    backgroundColor: "#2563EB",
+                    width: 40,
+                    height: 3,
+                    backgroundColor: "rgba(255,255,255,0.6)",
                     borderRadius: 2,
-                    marginBottom: 12,
+                    marginBottom: 16,
+                    position: "relative",
+                    zIndex: 1,
                   }}
                 />
                 <div
                   style={{
                     fontFamily: "'Source Serif 4', serif",
-                    fontSize: 22,
-                    color: "#fff",
+                    fontSize: 20,
+                    color: "#FFFFFF",
                     textAlign: "center",
-                    lineHeight: 1.3,
-                    display: "-webkit-box",
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: "vertical",
+                    lineHeight: 1.35,
+                    whiteSpace: "nowrap",
                     overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    position: "relative",
+                    zIndex: 1,
+                    maxWidth: "100%",
+                    textShadow: "0 1px 3px rgba(0,0,0,0.15)",
                   }}
                 >
                   {video.title}
@@ -369,32 +403,74 @@ export default function Library() {
                   style={{
                     fontFamily: "'Inter', sans-serif",
                     fontSize: 11,
-                    color: "#6B7280",
-                    marginTop: 8,
+                    color: "rgba(255,255,255,0.7)",
+                    marginTop: 10,
                     textAlign: "center",
+                    position: "relative",
+                    zIndex: 1,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    maxWidth: "100%",
                   }}
                 >
-                  {video.authors.slice(0, 2).join(", ")}
-                  {video.authors.length > 2 &&
-                    ` +${video.authors.length - 2} more`}
+                  {(() => {
+                    if (!video.authors?.length) return "";
+                    const raw = video.authors[0];
+                    const full = typeof raw === "string" ? raw : raw?.name || "";
+                    if (!full) return "";
+                    if (full.includes("et al")) return full;
+                    // Split by comma to get first author, strip special chars
+                    const firstAuthor = full.split(",")[0].replace(/[^\w\s.-]/g, "").trim();
+                    const parts = firstAuthor.split(" ").filter(Boolean);
+                    const lastName = parts.length > 1 ? parts[parts.length - 1] : parts[0];
+                    return `${lastName} et al.`;
+                  })()}
+                </div>
+
+                {/* Play icon overlay on hover */}
+                <div
+                  className="group-hover:opacity-100 opacity-0 transition-opacity"
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: "rgba(0,0,0,0.15)",
+                    zIndex: 2,
+                  }}
+                >
+                  <div style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: "50%",
+                    backgroundColor: "rgba(255,255,255,0.15)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backdropFilter: "blur(4px)",
+                  }}>
+                    <Play size={22} color="#FFFFFF" fill="#FFFFFF" style={{ marginLeft: 2 }} />
+                  </div>
                 </div>
 
                 {/* Duration badge */}
                 <div
                   style={{
                     position: "absolute",
-                    bottom: 8,
-                    right: 8,
-                    backgroundColor: "rgba(0,0,0,0.6)",
+                    bottom: 10,
+                    right: 10,
+                    backgroundColor: "rgba(0,0,0,0.7)",
                     borderRadius: 4,
-                    padding: "2px 6px",
-                    fontFamily: "'Inter', sans-serif",
+                    padding: "3px 8px",
+                    fontFamily: "'IBM Plex Mono', monospace",
                     fontSize: 11,
-                    color: "#fff",
+                    color: "#FFFFFF",
+                    zIndex: 3,
                   }}
                 >
-                  {Math.floor(video.duration / 60)}:
-                  {(video.duration % 60).toString().padStart(2, "0")}
+                  {Math.floor(video.duration / 60)}:{(video.duration % 60).toString().padStart(2, "0")}
                 </div>
               </div>
 

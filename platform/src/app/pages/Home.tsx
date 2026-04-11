@@ -57,11 +57,15 @@ export default function Home() {
         addJob(jobId, file.name.replace(/\.pdf$/i, ""));
         navigate(`/video/${jobId}?source=upload&name=${encodeURIComponent(file.name)}`);
       } catch (err: any) {
-        console.warn("Backend not available, using demo mode:", err.message);
-        const jobId = getOrCreateVideoId("upload_" + Date.now());
-        navigate(
-          `/video/${jobId}?source=upload&name=${encodeURIComponent(file.name)}&demo=1`
-        );
+        if (err.message?.includes("capacity") || err.message?.includes("503")) {
+          setError("capacity");
+        } else {
+          console.warn("Backend not available, using demo mode:", err.message);
+          const jobId = getOrCreateVideoId("upload_" + Date.now());
+          navigate(
+            `/video/${jobId}?source=upload&name=${encodeURIComponent(file.name)}&demo=1`
+          );
+        }
       } finally {
         setIsUploading(false);
       }
@@ -79,6 +83,81 @@ export default function Home() {
   };
 
   const canGenerate = !!file && !isUploading;
+
+  // Full-screen capacity overlay
+  if (error === "capacity") {
+    return (
+      <div style={{
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#FAFAF8",
+        fontFamily: "'Inter', sans-serif",
+        padding: 40,
+      }}>
+        {/* Hourglass SVG */}
+        <svg width="80" height="80" viewBox="0 0 80 80" fill="none" style={{ marginBottom: 32 }}>
+          <circle cx="40" cy="40" r="38" stroke="#E5E7EB" strokeWidth="2" fill="#FAFAF8" />
+          <path d="M28 20h24v8c0 6-5 10-12 14c7 4 12 8 12 14v8H28v-8c0-6 5-10 12-14c-7-4-12-8-12-14v-8z" fill="#F3F4F6" stroke="#D1D5DB" strokeWidth="1.5" />
+          <path d="M32 24h16v4c0 4-3.5 7-8 10c-4.5-3-8-6-8-10v-4z" fill="#2563EB" opacity="0.15" />
+          <path d="M32 60h16v-4c0-4-3.5-7-8-10c-4.5 3-8 6-8 10v4z" fill="#2563EB" opacity="0.3" />
+          <circle cx="40" cy="46" r="2" fill="#2563EB" opacity="0.5" />
+        </svg>
+
+        <h1 style={{
+          fontFamily: "'Source Serif 4', serif",
+          fontSize: 32,
+          color: "#1A1A1A",
+          fontWeight: 600,
+          marginBottom: 12,
+          textAlign: "center",
+        }}>
+          We're at capacity
+        </h1>
+
+        <p style={{
+          fontSize: 16,
+          color: "#6B7280",
+          textAlign: "center",
+          maxWidth: 420,
+          lineHeight: 1.6,
+          marginBottom: 8,
+        }}>
+          Please try again in a few minutes.
+        </p>
+
+        <p style={{
+          fontSize: 14,
+          color: "#9CA3AF",
+          textAlign: "center",
+          maxWidth: 420,
+          lineHeight: 1.5,
+          marginBottom: 32,
+        }}>
+          Our team is working to support more users. Thank you for your patience.
+        </p>
+
+        <button
+          onClick={() => setError(null)}
+          style={{
+            padding: "10px 28px",
+            backgroundColor: "#2563EB",
+            color: "#FFFFFF",
+            border: "none",
+            borderRadius: 8,
+            fontSize: 14,
+            fontWeight: 500,
+            cursor: "pointer",
+            fontFamily: "'Inter', sans-serif",
+          }}
+        >
+          Try again
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div style={{ backgroundColor: "#FAFAF8", minHeight: "100vh", display: "flex", flexDirection: "column", fontFamily: "'Inter', sans-serif" }}>
@@ -248,7 +327,7 @@ export default function Home() {
           )}
         </button>
 
-        {error && (
+        {error && error !== "capacity" && (
           <div style={{ marginTop: 16, padding: "12px 16px", borderRadius: 10, backgroundColor: "rgba(220, 38, 38, 0.05)", fontFamily: "'Inter', sans-serif", fontSize: 14, color: "#DC2626", width: 640 }}>{error}</div>
         )}
       </div>
@@ -261,16 +340,34 @@ export default function Home() {
             <button
               key={paper.id}
               onClick={() => handleExampleClick(paper.id)}
-              style={{ backgroundColor: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: 12, display: "flex", flexDirection: "column", flexShrink: 0, overflow: "clip", width: 260, cursor: "pointer", padding: 0, textAlign: "left" as const }}
+              className="group"
+              style={{ backgroundColor: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: 12, display: "flex", flexDirection: "column", flexShrink: 0, overflow: "clip", width: 260, cursor: "pointer", padding: 0, textAlign: "left" as const, transition: "border-color 0.15s, box-shadow 0.15s" }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#2563EB"; e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.08)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#E5E7EB"; e.currentTarget.style.boxShadow = "none"; }}
             >
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", backgroundColor: "#1A1A1A", flexShrink: 0, gap: 8, height: 120, justifyContent: "center", paddingBlock: 20, paddingInline: 20 }}>
-                <div style={{ backgroundColor: "#2563EB", borderRadius: 2, height: 3, width: 32 }} />
-                <span style={{ color: "#FAFAF8", fontFamily: "'Source Serif 4', serif", fontSize: 16, lineHeight: "20px", textAlign: "center", whiteSpace: "pre-wrap" as const }}>{paper.title.length > 40 ? paper.title.slice(0, 40) : paper.title}</span>
+              <div style={{
+                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0, gap: 8, height: 140, paddingBlock: 20, paddingInline: 24, position: "relative", overflow: "hidden",
+                background: (() => {
+                  const gradients = [
+                    "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                    "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+                    "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+                  ];
+                  const idx = (paper.title?.length || 0) % gradients.length;
+                  return gradients[idx];
+                })(),
+              }}>
+                <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.2) 0%, transparent 50%)", pointerEvents: "none" }} />
+                <div style={{ backgroundColor: "rgba(255,255,255,0.6)", borderRadius: 2, height: 3, width: 32, position: "relative", zIndex: 1 }} />
+                <span style={{ color: "#FFFFFF", fontFamily: "'Source Serif 4', serif", fontSize: 16, lineHeight: "20px", textAlign: "center", position: "relative", zIndex: 1, textShadow: "0 1px 3px rgba(0,0,0,0.15)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>{paper.title}</span>
+                <span style={{ color: "rgba(255,255,255,0.7)", fontFamily: "'Inter', sans-serif", fontSize: 11, position: "relative", zIndex: 1 }}>
+                  {paper.authors[0]?.split(" ").pop()} et al.
+                </span>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 6, paddingBlock: 14, paddingInline: 16 }}>
-                <span style={{ color: "#1A1A1A", fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 500, lineHeight: "16px" }}>{paper.title}</span>
+                <span style={{ color: "#1A1A1A", fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 500, lineHeight: "16px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{paper.title}</span>
                 <span style={{ color: "#9CA3AF", fontFamily: "'Inter', sans-serif", fontSize: 12, lineHeight: "16px" }}>
-                  {paper.authors.slice(0, 2).join(", ")}{paper.duration ? ` · ${Math.floor(paper.duration / 60)}:${(paper.duration % 60).toString().padStart(2, "0")}` : ""}
+                  {paper.duration ? `${Math.floor(paper.duration / 60)}:${(paper.duration % 60).toString().padStart(2, "0")}` : ""}
                 </span>
               </div>
             </button>

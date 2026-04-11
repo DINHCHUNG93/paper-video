@@ -10,7 +10,7 @@ import {
   saveVideoToSupabase,
   templateInfo,
 } from "../lib/data";
-import { getJobStatus, getJobData, cancelJob, statusToStageIndex } from "../lib/api";
+import { getJobStatus, getJobData, cancelJob, getQueueStatus, statusToStageIndex } from "../lib/api";
 import { useAuth } from "../lib/useAuth";
 import { useJobs } from "../lib/JobContext";
 import UserMenu from "../components/UserMenu";
@@ -170,6 +170,8 @@ export default function Processing() {
   const [completedTime, setCompletedTime] = useState<number | null>(null);
   const [paperInfo, setPaperInfo] = useState<any>(null);
   const [pipelineError, setPipelineError] = useState<string | null>(null);
+  const [isQueued, setIsQueued] = useState(false);
+  const [queueAhead, setQueueAhead] = useState(0);
   const [scenesDone, setScenesDone] = useState(0);
   const [scenesTotal, setScenesTotal] = useState(0);
   const pollingRef = useRef<ReturnType<typeof setInterval>>();
@@ -207,12 +209,20 @@ export default function Processing() {
           "color: inherit"
         );
 
+        const queued = status.status === "queued";
+        setIsQueued(queued);
+        if (queued) {
+          try {
+            const qs = await getQueueStatus();
+            setQueueAhead(Math.max(0, qs.queue_size - 1)); // exclude this job
+          } catch { /* ignore */ }
+        }
         setCurrentStage(stageIdx);
         setScenesTotal(status.scenes_total);
         setScenesDone(status.scenes_done);
 
-        // After extraction, fetch real paper info (once)
-        if (stageIdx >= 1 && !paperInfoFetchedRef.current) {
+        // After extraction, fetch real paper info (once) — skip if still queued
+        if (stageIdx >= 1 && !paperInfoFetchedRef.current && status.status !== "queued") {
           paperInfoFetchedRef.current = true;
           console.log(`[Pipeline ${jobId}] Fetching paper info...`);
           try {
@@ -241,8 +251,8 @@ export default function Processing() {
           }
         }
 
-        // After planning, fetch real scene plan (once)
-        if (stageIdx >= 2 && !scenePlanFetchedRef.current) {
+        // After planning, fetch real scene plan (once) — skip if still queued
+        if (stageIdx >= 2 && !scenePlanFetchedRef.current && status.status !== "queued") {
           scenePlanFetchedRef.current = true;
           console.log(`[Pipeline ${jobId}] Fetching scene plan...`);
           try {
@@ -462,6 +472,15 @@ export default function Processing() {
   const estimatedTimeRemaining = (() => {
     if (completedTime !== null || pipelineError) return null;
 
+    // If queued, estimate based on queue position
+    // We don't know if jobs ahead are brief or detailed, so use an average
+    const AVG_JOB_TIME = 5 * 60; // ~5 min average
+    if (isQueued) {
+      if (queueAhead <= 0) return null;
+      const waitMins = Math.ceil((queueAhead * AVG_JOB_TIME) / 60);
+      return `~${waitMins} min wait`;
+    }
+
     const STAGE_ESTIMATES: Record<number, number> = {
       0: 30,   // Extracting
       1: 40,   // Planning
@@ -599,6 +618,8 @@ export default function Processing() {
         >
           {completedTime !== null
             ? "Your video is ready"
+            : isQueued
+            ? "You're in the queue"
             : "Turning your paper into a video\u2026"}
         </h1>
         {paperSubtitle && (
@@ -697,6 +718,8 @@ export default function Processing() {
           >
             {completedTime !== null
               ? `Completed in ${completedTime}s`
+              : isQueued
+              ? "Waiting in queue..."
               : activeStage?.label || "Starting..."}
             {estimatedTimeRemaining && (
               <span style={{ fontWeight: 400, color: "#9CA3AF", marginLeft: 8, fontSize: 13 }}>
@@ -708,7 +731,7 @@ export default function Processing() {
             {completedTime === null && !pipelineError && useRealBackend && (
               <button
                 onClick={() => {
-                  if (window.confirm("Stop generating this video? Progress will be lost.")) {
+                  if (window.confirm(isQueued ? "Cancel this video?" : "Stop generating this video? Progress will be lost.")) {
                     if (jobId) {
                       console.log(`[Pipeline ${jobId}] Cancelling...`);
                       cancelJob(jobId);
@@ -732,7 +755,7 @@ export default function Processing() {
                 onMouseEnter={(e) => { e.currentTarget.style.color = "#DC2626"; e.currentTarget.style.borderColor = "#FCA5A5"; e.currentTarget.style.backgroundColor = "#FEF2F2"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.color = "#6B7280"; e.currentTarget.style.borderColor = "#D1D5DB"; e.currentTarget.style.backgroundColor = "transparent"; }}
               >
-                Stop
+                {isQueued ? "Cancel" : "Stop"}
               </button>
             )}
             <span
@@ -767,8 +790,24 @@ export default function Processing() {
         </div>
       </div>
 
+      {/* ── Queued message ── */}
+      {isQueued && (
+        <div style={{ padding: "40px 240px", textAlign: "center" }}>
+          <p style={{
+            fontFamily: "Inter, sans-serif",
+            fontSize: 15,
+            color: "#6B7280",
+            lineHeight: 1.6,
+          }}>
+            {queueAhead > 0
+              ? `${queueAhead} video${queueAhead > 1 ? "s are" : " is"} being generated ahead of yours. Your video will start automatically once it's your turn.`
+              : "Another video is currently being generated. Yours will start automatically once it's your turn."}
+          </p>
+        </div>
+      )}
+
       {/* ── Stage list ── */}
-      <div style={{ padding: "32px 240px 0" }}>
+      {!isQueued && <div style={{ padding: "32px 240px 0" }}>
         {processingStages.map((stage, index) => {
           const isComplete = index < currentStage;
           const isCurrent = index === currentStage && !pipelineError;
@@ -864,7 +903,7 @@ export default function Processing() {
             </div>
           );
         })}
-      </div>
+      </div>}
 
       {/* ── Insight ticker ── */}
       {completedTime === null && !pipelineError && (() => {
@@ -907,7 +946,7 @@ export default function Processing() {
       })()}
 
       {/* ── Scene plan ── */}
-      {scenePlan.length > 0 && (
+      {scenePlan.length > 0 && !isQueued && (
         <div style={{ padding: "40px 240px 60px" }}>
           <div className="flex items-center justify-between" style={{ marginBottom: 20 }}>
             <span style={{ fontFamily: "'Source Serif 4', serif", fontSize: 20, color: "#1A1A1A", fontWeight: 600 }}>

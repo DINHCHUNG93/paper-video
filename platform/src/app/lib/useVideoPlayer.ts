@@ -171,9 +171,11 @@ export function useVideoPlayer(videoId?: string, arxivId?: string) {
   const fallbackBlobUrl = !video?.blobUrl && video?.realJobId && blobBase
     ? `${blobBase}/${video.realJobId}/final.mp4`
     : null;
-  const streamUrl = isLocalDev && video?.realJobId
-    ? getStreamUrl(video.realJobId)
-    : video?.blobUrl || fallbackBlobUrl || (video?.realJobId ? getStreamUrl(video.realJobId) : null);
+  const streamUrl = video?.blobUrl
+    ? video.blobUrl
+    : isLocalDev && video?.realJobId
+      ? getStreamUrl(video.realJobId)
+      : fallbackBlobUrl || (video?.realJobId ? getStreamUrl(video.realJobId) : null);
 
   const useRealChapters = chapters && chapters.length === activeScenes.length;
   const totalSceneDuration = useRealChapters

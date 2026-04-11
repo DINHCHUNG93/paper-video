@@ -249,13 +249,20 @@ def _render_remotion_scene(
     ]
     cmd = base_cmd
 
-    result = subprocess.run(
-        cmd,
-        cwd=str(REMOTION_DIR),
-        capture_output=True,
-        text=True,
-        timeout=600,
-    )
+    # Retry up to 3 times on ETXTBSY (Chrome binary race condition)
+    result = None
+    for attempt in range(3):
+        result = subprocess.run(
+            cmd,
+            cwd=str(REMOTION_DIR),
+            capture_output=True,
+            text=True,
+            timeout=600,
+        )
+        if result.returncode == 0 or "ETXTBSY" not in result.stderr:
+            break
+        logger.warning("  Scene %d: ETXTBSY on attempt %d, retrying in %ds...", index + 1, attempt + 1, 2 + attempt * 2)
+        time.sleep(2 + attempt * 2)
 
     if result.returncode != 0:
         raise RuntimeError(

@@ -99,9 +99,11 @@ export default function JobBanner() {
 
       {/* Active processing jobs */}
       {visibleJobs.map((job) => {
+        const isJobQueued = job.status === "queued";
         const stageIdx = statusToStageIndex(job.status);
-        const stageLabel =
-          stageIdx >= 0 && stageIdx < STAGE_LABELS.length
+        const stageLabel = isJobQueued
+          ? "In queue"
+          : stageIdx >= 0 && stageIdx < STAGE_LABELS.length
             ? STAGE_LABELS[stageIdx]
             : "Processing";
         const sceneInfo =

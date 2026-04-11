@@ -21,6 +21,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from pipeline import create_job, get_job, cancel_job, run_pipeline, OUTPUT_ROOT, UPLOADED_PDFS_DIR
+import pipeline.orchestrator as _orch
 from pipeline.template_registry import REGISTRY
 from pipeline.template_registry import TEMPLATES_DIR
 
@@ -51,6 +52,15 @@ async def upload_pdf(file: UploadFile, mode: str = "brief"):
     if mode not in ("brief", "detailed"):
         mode = "brief"
 
+    # Check queue capacity
+    with _orch._queue_lock:
+        if _orch._queue_count >= _orch.MAX_QUEUE_SIZE:
+            raise HTTPException(
+                503,
+                "We're at capacity. Please try again in a few minutes."
+            )
+        _orch._queue_count += 1
+
     # Save uploaded PDF to a temp location outside uploaded-pdfs,
     # so create_job will run _store_pdf to deduplicate it properly.
     tmp_path = OUTPUT_ROOT / f"_tmp_{file.filename}"
@@ -61,7 +71,7 @@ async def upload_pdf(file: UploadFile, mode: str = "brief"):
     job_id = create_job(tmp_path)
     tmp_path.unlink(missing_ok=True)
 
-    # Run pipeline in background thread
+    # Run pipeline in background thread (waits for semaphore internally)
     t = threading.Thread(target=run_pipeline, args=(job_id,), kwargs={"plan_mode": mode}, daemon=True)
     t.start()
 
@@ -73,6 +83,17 @@ async def cancel_pipeline(job_id: str):
     if cancel_job(job_id):
         return {"status": "cancelled"}
     raise HTTPException(404, "Job not found or already completed.")
+
+
+@app.get("/queue-status")
+async def queue_status():
+    """Return current queue info."""
+    with _orch._queue_lock:
+        return {
+            "queue_size": _orch._queue_count,
+            "max_queue_size": _orch.MAX_QUEUE_SIZE,
+            "available": _orch._queue_count < _orch.MAX_QUEUE_SIZE,
+        }
 
 
 @app.get("/active-jobs")

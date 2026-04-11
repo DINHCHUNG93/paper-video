@@ -75,6 +75,17 @@ export async function getActiveJobs(): Promise<{ job_id: string; status: JobStat
   }
 }
 
+/** Fetch current queue status. */
+export async function getQueueStatus(): Promise<{ queue_size: number; max_queue_size: number; available: boolean }> {
+  try {
+    const res = await fetch(`${API_BASE}/queue-status`);
+    if (!res.ok) return { queue_size: 0, max_queue_size: 8, available: true };
+    return res.json();
+  } catch {
+    return { queue_size: 0, max_queue_size: 8, available: true };
+  }
+}
+
 /** Cancel a running pipeline job. */
 export async function cancelJob(jobId: string): Promise<void> {
   await fetch(`${API_BASE}/cancel/${jobId}`, { method: "POST" });

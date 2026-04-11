@@ -13,6 +13,12 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+# ── Job queue ────────────────────────────────────────────────────────────────
+MAX_QUEUE_SIZE = int(os.environ.get("MAX_QUEUE_SIZE", "8"))
+_pipeline_semaphore = threading.Semaphore(1)  # only 1 job runs at a time
+_queue_count = 0
+_queue_lock = threading.Lock()
+
 logger = logging.getLogger(__name__)
 
 from pipeline.extract import extract_pdf
@@ -177,8 +183,14 @@ class Pipeline:
             till_stage: Stop after this stage ("extract", "plan", "render", "tts").
             plan_mode: "brief" (single LLM call) or "detailed" (per-section parallel calls).
         """
+        global _queue_count
         job = self.job_manager._jobs[job_id]
         job_dir = Path(job["job_dir"])
+
+        # Wait for our turn in the queue
+        logger.info("[%s] Waiting for pipeline slot... (queue: %d/%d)", job_id, _queue_count, MAX_QUEUE_SIZE)
+        _pipeline_semaphore.acquire()
+        logger.info("[%s] Pipeline slot acquired, starting", job_id)
 
         # Per-job log file so every run is inspectable after the fact
         job_log_handler = logging.FileHandler(job_dir / "pipeline.log")
@@ -295,6 +307,10 @@ class Pipeline:
             job["error"] = str(exc)
             _persist_status(job, job_dir)
         finally:
+            _pipeline_semaphore.release()
+            with _queue_lock:
+                _queue_count -= 1
+            logger.info("[%s] Pipeline slot released (queue: %d/%d)", job_id, _queue_count, MAX_QUEUE_SIZE)
             pipeline_root.removeHandler(job_log_handler)
             job_log_handler.close()
 
