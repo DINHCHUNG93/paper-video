@@ -5,6 +5,7 @@ import { seedSampleItems } from "../lib/data";
 import { examplePapers, mockPaperData } from "../lib/data";
 import { getLibraryFromSupabase } from "../lib/supabaseVideos";
 import { useAuth } from "../lib/useAuth";
+import { useJobs } from "../lib/JobContext";
 import UserMenu from "../components/UserMenu";
 
 function timeAgo(dateStr: string): string {
@@ -28,6 +29,7 @@ function timeAgo(dateStr: string): string {
 export default function Library() {
   const navigate = useNavigate();
   const { user, signInWithGoogle, signOut } = useAuth();
+  const { activeJobs } = useJobs();
   const [searchQuery, setSearchQuery] = useState("");
   const [library, setLibrary] = useState<any[]>([]);
   const [libraryLoading, setLibraryLoading] = useState(true);
@@ -320,6 +322,86 @@ export default function Library() {
           >
             No videos found matching "{searchQuery}"
           </p>
+        </div>
+      )}
+
+      {/* Active jobs */}
+      {activeJobs.length > 0 && (
+        <div style={{ padding: "24px 80px 0" }}>
+          <p style={{
+            fontFamily: "Inter, sans-serif",
+            fontSize: 12,
+            color: "#9CA3AF",
+            textTransform: "uppercase",
+            letterSpacing: "1px",
+            marginBottom: 12,
+            fontWeight: 500,
+          }}>
+            Processing
+          </p>
+          <div className="flex flex-wrap" style={{ gap: 16 }}>
+            {activeJobs.map((job) => (
+              <div
+                key={job.jobId}
+                onClick={() => navigate(`/video/${job.jobId}`)}
+                className="group"
+                style={{
+                  width: 380,
+                  backgroundColor: "#fff",
+                  border: "1px solid #E5E7EB",
+                  borderRadius: 12,
+                  overflow: "hidden",
+                  cursor: "pointer",
+                  transition: "border-color 0.15s, box-shadow 0.15s",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#2563EB"; e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.08)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#E5E7EB"; e.currentTarget.style.boxShadow = "none"; }}
+              >
+                <div
+                  style={{
+                    height: 120,
+                    background: "linear-gradient(135deg, #1e293b 0%, #334155 100%)",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 12,
+                  }}
+                >
+                  <Loader2 size={24} color="#60A5FA" className="animate-spin" />
+                  <span style={{
+                    fontFamily: "Inter, sans-serif",
+                    fontSize: 12,
+                    color: "#93C5FD",
+                    fontWeight: 500,
+                  }}>
+                    {job.status === "queued" ? "In queue" : `${job.status.replace(/_/g, " ")}${job.scenesTotal > 0 ? ` (${job.scenesDone}/${job.scenesTotal})` : ""}`}
+                  </span>
+                </div>
+                <div style={{ padding: 16 }}>
+                  <div style={{
+                    fontFamily: "Inter, sans-serif",
+                    fontSize: 14,
+                    fontWeight: 500,
+                    color: "#1A1A1A",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}>
+                    {job.paperName}
+                  </div>
+                  <div style={{
+                    fontFamily: "Inter, sans-serif",
+                    fontSize: 12,
+                    color: "#2563EB",
+                    marginTop: 4,
+                  }}>
+                    Click to view progress
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
