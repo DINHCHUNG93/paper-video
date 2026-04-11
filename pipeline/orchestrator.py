@@ -84,14 +84,10 @@ class JobManager:
         return slug[:max_len]
 
     def _next_run_name(self, slug: str, suffix: str = "") -> str:
-        """Find next available name like immuno1, immuno2."""
-        existing = sorted(self.output_root.glob(f"{slug}*")) if self.output_root.exists() else []
-        max_num = 0
-        for p in existing:
-            m = re.match(rf"^{re.escape(slug)}(\d+)", p.name)
-            if m:
-                max_num = max(max_num, int(m.group(1)))
-        return f"{slug}{max_num + 1}{suffix}"
+        """Generate a unique job name like immuno_a3f1."""
+        import secrets
+        uid = secrets.token_hex(2)  # 4 hex chars
+        return f"{slug}_{uid}{suffix}"
 
     def _store_pdf(self, pdf_path: Path) -> Path:
         """Copy PDF to uploaded-pdfs/ (deduplicated by content hash)."""

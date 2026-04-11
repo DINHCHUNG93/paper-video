@@ -171,10 +171,10 @@ export function useVideoPlayer(videoId?: string, arxivId?: string) {
   const fallbackBlobUrl = !video?.blobUrl && video?.realJobId && blobBase
     ? `${blobBase}/${video.realJobId}/final.mp4`
     : null;
-  // On production, fall back to backend /stream via API_BASE (which should be the Container App URL)
-  const streamUrl = video?.blobUrl
-    ? video.blobUrl
-    : fallbackBlobUrl || (video?.realJobId ? getStreamUrl(video.realJobId) : null);
+  // Prefer backend /stream for seeking support, fall back to blob URL when container is down
+  const streamUrl = video?.realJobId
+    ? getStreamUrl(video.realJobId)
+    : video?.blobUrl || fallbackBlobUrl || null;
 
   const useRealChapters = chapters && chapters.length === activeScenes.length;
   const totalSceneDuration = useRealChapters

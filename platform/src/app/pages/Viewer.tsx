@@ -17,6 +17,7 @@ export default function Viewer() {
   const { user, signInWithGoogle, signOut } = useAuth();
   const p = useVideoPlayer(videoId, arxivId);
   const [videoLoading, setVideoLoading] = useState(true);
+  const [videoError, setVideoError] = useState(false);
 
   if (!p.video) {
     if (p.cloudLoading) {
@@ -117,8 +118,21 @@ export default function Viewer() {
               style={{ backgroundColor: "#1A1A1A", borderRadius: "12px 12px 0 0" }}
             >
               {(() => { console.log("[RENDER] hasRealVideo:", p.hasRealVideo, "streamUrl:", p.streamUrl?.slice(0, 40)); return null; })()}
+              {/* Video unavailable */}
+              {videoError && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center z-10" style={{ backgroundColor: "#1A1A1A" }}>
+                  <p style={{ color: "#9CA3AF", fontFamily: "Inter, sans-serif", fontSize: 14 }}>This video is no longer available</p>
+                  <button
+                    onClick={() => navigate("/")}
+                    style={{ marginTop: 12, padding: "8px 20px", backgroundColor: "#2563EB", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, cursor: "pointer", fontFamily: "Inter, sans-serif" }}
+                  >
+                    Generate a new video
+                  </button>
+                </div>
+              )}
+
               {/* Loading spinner */}
-              {videoLoading && p.hasRealVideo && p.streamUrl && (
+              {videoLoading && !videoError && p.hasRealVideo && p.streamUrl && (
                 <div className="absolute inset-0 flex items-center justify-center z-10" style={{ backgroundColor: "#1A1A1A" }}>
                   <Loader2 size={32} color="#2563EB" className="animate-spin" />
                 </div>
@@ -134,7 +148,7 @@ export default function Viewer() {
                   onCanPlay={() => setVideoLoading(false)}
                   onSeeking={() => console.log("[VIDEO] seeking to:", p.videoElRef.current?.currentTime)}
                   onSeeked={() => console.log("[VIDEO] seeked, now at:", p.videoElRef.current?.currentTime)}
-                  onError={(e) => { console.warn("[VIDEO] error:", (e.target as HTMLVideoElement).error); setVideoLoading(false); }}
+                  onError={(e) => { console.warn("[VIDEO] error:", (e.target as HTMLVideoElement).error); setVideoLoading(false); setVideoError(true); }}
                   onPlay={() => p.setIsPlaying(true)}
                   onPause={() => p.setIsPlaying(false)}
                   onEnded={() => p.setIsPlaying(false)}
