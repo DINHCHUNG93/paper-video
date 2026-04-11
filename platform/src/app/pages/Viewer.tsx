@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router";
 import {
   Play, Pause, Volume2, Maximize, Minimize,
@@ -18,6 +18,7 @@ export default function Viewer() {
   const p = useVideoPlayer(videoId, arxivId);
   const [videoLoading, setVideoLoading] = useState(true);
   const [videoError, setVideoError] = useState(false);
+  const videoRetryRef = useRef(0);
 
   if (!p.video) {
     if (p.cloudLoading) {
@@ -148,7 +149,20 @@ export default function Viewer() {
                   onCanPlay={() => setVideoLoading(false)}
                   onSeeking={() => console.log("[VIDEO] seeking to:", p.videoElRef.current?.currentTime)}
                   onSeeked={() => console.log("[VIDEO] seeked, now at:", p.videoElRef.current?.currentTime)}
-                  onError={(e) => { console.warn("[VIDEO] error:", (e.target as HTMLVideoElement).error); setVideoLoading(false); setVideoError(true); }}
+                  onError={(e) => {
+                    console.warn("[VIDEO] error:", (e.target as HTMLVideoElement).error);
+                    videoRetryRef.current += 1;
+                    if (videoRetryRef.current === 1) {
+                      // First failure (backend /stream) — try blob fallback
+                      console.log("[VIDEO] Backend stream failed, trying blob fallback...");
+                      p.fallbackToBlob();
+                      setVideoLoading(true);
+                    } else {
+                      // Blob also failed — video is truly gone
+                      setVideoLoading(false);
+                      setVideoError(true);
+                    }
+                  }}
                   onPlay={() => p.setIsPlaying(true)}
                   onPause={() => p.setIsPlaying(false)}
                   onEnded={() => p.setIsPlaying(false)}

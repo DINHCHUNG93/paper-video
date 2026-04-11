@@ -171,10 +171,11 @@ export function useVideoPlayer(videoId?: string, arxivId?: string) {
   const fallbackBlobUrl = !video?.blobUrl && video?.realJobId && blobBase
     ? `${blobBase}/${video.realJobId}/final.mp4`
     : null;
-  // Prefer backend /stream for seeking support, fall back to blob URL when container is down
-  const streamUrl = video?.realJobId
-    ? getStreamUrl(video.realJobId)
-    : video?.blobUrl || fallbackBlobUrl || null;
+  // Try container /stream first (faster + seekable), fall back to blob on error
+  const backendStreamUrl = video?.realJobId ? getStreamUrl(video.realJobId) : null;
+  const blobStreamUrl = video?.blobUrl || fallbackBlobUrl || null;
+  const [useBlob, setUseBlob] = useState(false);
+  const streamUrl = useBlob ? blobStreamUrl : (backendStreamUrl || blobStreamUrl);
 
   const useRealChapters = chapters && chapters.length === activeScenes.length;
   const totalSceneDuration = useRealChapters
@@ -460,5 +461,6 @@ export function useVideoPlayer(videoId?: string, arxivId?: string) {
     setRealDuration,
     setExportReminderDismissed,
     cloudLoading,
+    fallbackToBlob: () => setUseBlob(true),
   };
 }
