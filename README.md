@@ -283,6 +283,8 @@ GitHub Actions (`.github/workflows/deploy.yml`):
 
 ---
 
+
+
 ## Stack
 
 | Layer | Technology |
@@ -295,3 +297,70 @@ GitHub Actions (`.github/workflows/deploy.yml`):
 | Video | FFmpeg (H.264, AAC) |
 | Frontend | React 18, TypeScript, Vite, Tailwind CSS 4, Radix UI |
 | Infrastructure | Azure Container Apps, Azure Blob Storage, Vercel |
+
+
+Dự án nguồn mở AI biến tài liệu PDF thành video thuyết trình chỉ trong vài phút
+
+Paper Video là một dự án open-source giúp bạn chuyển trực tiếp file PDF nghiên cứu thành video có narration, giống như một buổi presentation ngắn.
+
+👉 Upload paper → nhận video tóm tắt hoàn chỉnh
+
+🚀 Ý tưởng cốt lõi
+
+Thay vì:
+ • Đọc 20–30 trang paper
+ • Hoặc tự làm slide + thuyết trình
+
+👉 Paper Video làm tự động:
+ • Extract nội dung chính
+ • Render slide + visualization
+ • Thêm voice narration
+ • Xuất video hoàn chỉnh  ￼
+
+⚡ Điểm nổi bật
+
+🎬 Video từ dữ liệu thật (không phải “AI bịa”)
+ • Lấy trực tiếp bảng, hình, kết quả trong paper
+ • Render thành scene animation
+
+👉 Ưu tiên accuracy > visual fancy  ￼
+
+🧠 Pipeline agent rõ ràng
+ • Đọc paper → chia scene
+ • Render bằng HTML/CSS template
+ • Dùng TTS tạo giọng đọc
+ • Dùng ffmpeg ghép video
+
+👉 Giống một “AI presenter” tự động  ￼
+
+⚡ Tạo video cực nhanh
+ • Chỉ vài phút thay vì hàng giờ chuẩn bị
+ • Phù hợp đọc nhanh nhiều paper
+
+👉 Nằm giữa:
+ • Abstract (quá ít)
+ • Full paper (quá dài)  ￼
+
+🎯 Use case
+ • Chuẩn bị seminar / journal club
+ • Lọc nhanh paper quan trọng
+ • Học ML/AI nhanh hơn
+ • Tạo content education
+
+🧠 Insight
+
+Project này cho thấy một xu hướng rõ:
+
+👉 Paper → không còn chỉ là text
+👉 Mà trở thành multimedia content (video-first)
+
+🧠 Kết luận
+
+Paper Video không chỉ là tool.
+
+👉 Nó là bước tiến trong cách consume knowledge:
+ • Đọc → xem
+ • Passive → interactive
+ • Chậm → cực nhanh
+
+
